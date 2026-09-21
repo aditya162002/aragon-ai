@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* One accent colour for the whole app; swap the palette here to rebrand. */
+@theme {
+  --color-brand-50: var(--color-indigo-50);
+  --color-brand-100: var(--color-indigo-100);
+  --color-brand-200: var(--color-indigo-200);
+  --color-brand-500: var(--color-indigo-500);
+  --color-brand-600: var(--color-indigo-600);
+  --color-brand-700: var(--color-indigo-700);
+  --color-brand-accent: var(--color-violet-500);
+
+  /* Smallest card width in the photo grid: 2 columns on phones, up to 5 on wide screens. */
+  --spacing-card-min: 9.5rem;
+}
+
+@utility photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--spacing-card-min), 1fr));
+}
+
+@layer base {
+  body {
+    @apply bg-white text-slate-900 antialiased;
+  }
+}

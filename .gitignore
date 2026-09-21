@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+
+# Environment (copy .env.example to .env)
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client
+apps/api/src/generated/
+
+# Face model weights are downloaded by `npm run models:fetch` (non-commercial licence, not redistributed)
+apps/api/models/*.onnx
+
+# Local tooling config (not part of the project)
+.mcp.json

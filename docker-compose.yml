@@ -1,0 +1,38 @@
+# Local infrastructure only: PostgreSQL + an S3-compatible object store.
+# The API, worker and web app run on the host via `npm run dev`.
+name: aragon-photo-upload
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: aragon
+      POSTGRES_PASSWORD: aragon
+      POSTGRES_DB: aragon
+    ports:
+      # 5433 on the host so it never collides with a locally installed PostgreSQL on 5432.
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aragon -d aragon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  storage:
+    # RustFS: Apache-2.0, S3-compatible. (MinIO community images are no longer published.)
+    # The app talks plain S3 via the AWS SDK, so switching to AWS S3 is an env change only.
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: aragon-dev
+      RUSTFS_SECRET_KEY: aragon-dev-secret
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Web console
+    volumes:
+      - storage-data:/data
+
+volumes:
+  postgres-data:
+  storage-data:

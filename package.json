@@ -1,0 +1,32 @@
+{
+  "name": "aragon-photo-upload",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Selfie upload with server-side validation (format, size, resolution, duplicates, blur, face checks).",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "setup": "npm run setup:env && docker compose up -d --wait && npm run db:deploy -w @aragon/api && npm run models:fetch -w @aragon/api",
+    "setup:env": "node -e \"import('node:fs').then(({ existsSync, copyFileSync }) => existsSync('apps/api/.env') || copyFileSync('apps/api/.env.example', 'apps/api/.env'))\"",
+    "dev": "concurrently --kill-others-on-fail --names api,worker,web --prefix-colors blue,magenta,green \"npm run dev -w @aragon/api\" \"npm run worker:dev -w @aragon/api\" \"npm run dev -w @aragon/web\"",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "stop": "docker compose down"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.5"
+  },
+  "allowScripts": {
+    "onnxruntime-node@1.30.0": true,
+    "prisma@7.10.0": true,
+    "@prisma/engines@7.10.0": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": false
+  }
+}

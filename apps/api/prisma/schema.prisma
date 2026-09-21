@@ -1,0 +1,86 @@
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// PENDING → PROCESSING → ACCEPTED | REJECTED, or FAILED after repeated infrastructure errors.
+enum ImageStatus {
+  PENDING
+  PROCESSING
+  ACCEPTED
+  REJECTED
+  FAILED
+}
+
+/// Format detected from magic bytes (never from the client-supplied name or MIME type).
+enum ImageFormat {
+  JPEG
+  PNG
+  HEIC
+}
+
+/// Reasons decided by the processing worker. Format/size-cap rejections happen before storage.
+enum RejectionReason {
+  FILE_TOO_SMALL
+  UNREADABLE
+  RESOLUTION_TOO_LOW
+  NO_FACE
+  MULTIPLE_FACES
+  FACE_TOO_SMALL
+  BLURRY
+  DUPLICATE
+}
+
+/// An anonymous uploader, identified by a signed httpOnly cookie.
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  images    Image[]
+
+  @@map("users")
+}
+
+/// One uploaded photo. The table doubles as the processing queue (rows in PENDING are the backlog).
+model Image {
+  id              String           @id @default(uuid()) @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Client file name, stored for display only; never used to build storage keys.
+  originalName    String           @map("original_name") @db.VarChar(255)
+  format          ImageFormat
+  sizeBytes       Int              @map("size_bytes")
+  status          ImageStatus      @default(PENDING)
+  rejectionReason RejectionReason? @map("rejection_reason")
+  /// Auto-oriented dimensions, filled in by the worker.
+  width           Int?
+  height          Int?
+  originalKey     String           @map("original_key")
+  normalizedKey   String?          @map("normalized_key")
+  thumbnailKey    String?          @map("thumbnail_key")
+  /// 64-bit dHash stored as signed BIGINT; compared with bit_count(a # b) for Hamming distance.
+  perceptualHash  BigInt?          @map("perceptual_hash")
+  /// Variance of the Laplacian over the face crop (higher = sharper).
+  blurScore       Float?           @map("blur_score")
+  /// Detected face boxes/scores, kept for auditing and threshold tuning.
+  faces           Json?
+  attempts        Int              @default(0)
+  lockedAt        DateTime?        @map("locked_at") @db.Timestamptz(3)
+  /// Last infrastructure error (internal only, never returned to clients).
+  lastError       String?          @map("last_error")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  processedAt     DateTime?        @map("processed_at") @db.Timestamptz(3)
+
+  /// Keyset pagination of a user's gallery (newest first).
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "images_user_created_idx")
+  /// Tiny index containing only in-flight rows: the worker's claim query scans just the backlog.
+  @@index([createdAt], map: "images_queue_idx", where: raw("status IN ('PENDING', 'PROCESSING')"))
+  /// Near-duplicate scan runs over a user's accepted photos only.
+  @@index([userId], map: "images_user_accepted_idx", where: raw("status = 'ACCEPTED'"))
+  @@map("images")
+}
